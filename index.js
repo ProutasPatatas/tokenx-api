@@ -12,7 +12,7 @@ require("dotenv").config();
 
 // Initialize Express app
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3000;
 
 // Configure multer for file upload
 const upload = multer();
@@ -87,7 +87,7 @@ app.post("/api/website", upload.single('image'), async (req, res) => {
             userId: user.userId,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
-            published: false,
+            published: true,
             ref: 'api',
             templateId: template || "Y9zdHtTUz6GRCDmSWwvO",
             url: `https://${subdomain}.x.tokenx.site`,
