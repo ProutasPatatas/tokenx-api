@@ -90,8 +90,6 @@ app.post("/api/website", upload.single('image'), async (req, res) => {
             published: true,
             ref: 'api',
             templateId: template || "Y9zdHtTUz6GRCDmSWwvO",
-            url: `https://${subdomain}.x.tokenx.site`,
-            currentURL: `https://${subdomain}.x.tokenx.site`,
             templateOptions: templateOptions.templateData || {}
         };
 
