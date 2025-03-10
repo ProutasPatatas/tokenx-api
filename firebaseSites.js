@@ -1,6 +1,7 @@
 // FirebaseSites
 
 const initializeFirebase = require("./firebaseConfig.js");
+const crypto = require('crypto'); // Add this for UUID generation
 
 // Initialize Firebase (asynchronously)
 let db;
@@ -18,11 +19,54 @@ initializeFirebase()
  */
 const userOperations = {
   /**
+   * Get or create a user based on wallet address
+   * @param {Object} userData - User data containing wallet address
+   * @returns {Promise<Object>} User document with ID and data
+   */
+  getOrCreateUser: async (userData) => {
+    try {
+      // Check if user exists by wallet address
+      const userQuery = await db.collection('users')
+        .where('walletAddress', '==', userData.walletAddress)
+        .get();
+
+      // If user exists, return existing user data
+      if (!userQuery.empty) {
+        const userDoc = userQuery.docs[0];
+        return {
+          userId: userDoc.id,
+          ...userDoc.data()
+        };
+      }
+
+      // Create new user data
+      const newUserData = {
+        walletAddress: userData.walletAddress,
+        source: 'api',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        uuid: crypto.randomUUID()
+      };
+
+      // Add new user to collection
+      const userRef = await db.collection('users').add(newUserData);
+
+      return {
+        userId: userRef.id,
+        ...newUserData
+      };
+    } catch (error) {
+      console.error('Error in user management:', error);
+      throw new Error('Failed to manage user data: ' + error.message);
+    }
+  },
+
+  /**
    * Get or create a user based on Telegram data
    * @param {Object} telegramUser - User data from Telegram
    * @returns {Promise<Object>} User document with ID and data
    */
-  getOrCreateUser: async (telegramUser) => {
+  getOrCreateTelegramUser: async (telegramUser) => {
     try {
       // Check if user exists
       const userQuery = await db.collection('users')
@@ -203,6 +247,7 @@ const siteOperations = {
 module.exports = {
   // User operations
   getOrCreateUser: userOperations.getOrCreateUser,
+  getOrCreateTelegramUser: userOperations.getOrCreateTelegramUser,
   updateUser: userOperations.updateUser,
 
   // Site operations

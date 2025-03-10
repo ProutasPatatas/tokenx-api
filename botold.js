@@ -1,68 +1,4 @@
-const { Telegraf } = require("telegraf");
-const { commandHandlers } = require("./commands");
-const { flowHandlers } = require("./handlers/flowHandlers");
-const { siteHandlers } = require("./handlers/siteHandlers");
-const { sendMessageToBotality } = require("../services/botality/api");
-const { CONFIG } = require("../config/telegram");
-require("dotenv").config();
-
-// Initialize bot
-const bot = new Telegraf(CONFIG.botToken);
-
-// Global state (consider moving to a proper state management solution later)
-const userState = {};
-
-// Register command handlers
-bot.command('start', commandHandlers.start);
-bot.command('create', commandHandlers.create);
-bot.command('create_sticker_pack', commandHandlers.createStickerPack);
-
-// Register action handlers
-bot.action("start_create", (ctx) => commandHandlers.create(ctx));
-bot.action("manual_mode", (ctx) => {
-    const state = userState[ctx.chat.id];
-    if (!state) {
-        return ctx.reply("Please start with /create first.");
-    }
-    flowHandlers.handleModeSelection(ctx, "manual");
-});
-bot.action("autofill_mode", (ctx) => {
-    const state = userState[ctx.chat.id];
-    if (!state) {
-        return ctx.reply("Please start with /create first.");
-    }
-    flowHandlers.handleModeSelection(ctx, "autofill");
-});
-bot.action('create_sticker_pack', commandHandlers.createStickerPack);
-
-// Register photo handler
-bot.on('photo', async (ctx) => {
-    if (userState[ctx.chat.id]?.creatingStickerPack) {
-        await flowHandlers.handleStickerImageUpload(ctx);
-    } else {
-        await flowHandlers.handleImageUpload(ctx);
-    }
-});
-
-// Register text handler
-bot.on('text', async (ctx) => {
-    if (userState[ctx.chat.id]?.creatingStickerPack) {
-        await flowHandlers.handleStickerPrompt(ctx);
-    } else {
-        const state = userState[ctx.chat.id];
-        if (state) {
-            await flowHandlers.handleNextStep(ctx, ctx.message.text);
-        }
-    }
-    await sendMessageToBotality(ctx.message);
-});
-
-// Export bot instance and state
-module.exports = {
-    bot,
-    userState
-};
-
+// botold.js
 const { Telegraf, Markup } = require("telegraf");
 const {
     getOrCreateUser,
@@ -70,15 +6,12 @@ const {
     getTemplateData
 } = require("./firebaseSites");
 
-const { fetchTokenData, fetchMetadata } = require("./fetchTokenData");
-const { generateImage } = require('./img2img');
-const { createStickers } = require('./stickers');  // Import the stickers function
-
+const { fetchTokenData } = require("./fetchTokenData");
 require("dotenv").config();
 
 // Core configuration
 const CONFIG = {
-    botToken: process.env.BOT_TOKEN,
+    botToken: process.env.DEBUG_MODE ? process.env.BOT_TOKEN_DEV : process.env.BOT_TOKEN,
     templateId: 'Y9zdHtTUz6GRCDmSWwvO'
 };
 
@@ -193,7 +126,7 @@ const commandHandlers = {
             "Welcome to TokenX bot! Choose an option below:",
             Markup.inlineKeyboard([
                 Markup.button.callback("Create a Website 🌐", "start_create"),
-//                Markup.button.callback("Create a Sticker Pack 🃏", "create_sticker_pack")
+                Markup.button.callback("Create a Sticker Pack 🃏", "create_sticker_pack")
             ])
         );
     },
@@ -348,75 +281,20 @@ const siteHandlers = {
     }
 };
 
-let creatingStickerPack = false; // Flag to track if user is in sticker pack creation flow
-let imageUrl = '';  // To store the uploaded image URL
-let userPrompt = '';  // To store the user's prompt for the sticker
 
-// The function to create a sticker pack
-async function createStickerPack(ctx) {
-    // Set flag to start sticker pack creation flow
-    creatingStickerPack = true;
-
-    // Step 1: Ask the user to upload an image for the memecoin
-    await ctx.reply(
-        'You\'ve triggered the sticker pack creation! Please upload an image for your memecoin sticker.\n\n' +
-        'For best results, please upload a high-quality image with a transparent background (PNG format is recommended). Only one image is required.'
-    );
-}
 // Register command handlers
 bot.command('start', commandHandlers.start);
 bot.command('create', commandHandlers.create);
-bot.command('create_sticker_pack', createStickerPack);
 
 // Register global photo handler
 bot.on('photo', async (ctx) => {
-    if (creatingStickerPack) {
-        // Extract the image URL (assumes the first photo in the array)
-        const photo = ctx.message.photo;
-        const fileId = photo[photo.length - 1].file_id;
-
-        try {
-            const file = await bot.telegram.getFileLink(fileId);
-            imageUrl = file.href;
-
-            // Send confirmation to user
-            ctx.reply('Got your image! Please now provide a prompt for your memecoin sticker.');
-        } catch (error) {
-            ctx.reply("Error processing the image. Please try again.");
-            console.error(error);
-        }
-    } else {
-        flowHandlers.handleImageUpload(ctx);
-    }
+    flowHandlers.handleImageUpload(ctx);
 });
 
 bot.on('text', async (ctx) => {
-    if (creatingStickerPack && !userPrompt) {
-        // Capture the user's prompt
-        userPrompt = ctx.message.text;
-
-        // Send confirmation of the prompt
-        await ctx.reply(`Got your prompt: "${userPrompt}". We're creating the memecoin sticker pack now...`);
-
-        try {
-            const result = await generateImage({ imageUrl: imageUrl, prompt: userPrompt });
-            let imagesToStickers = []
-            imagesToStickers.push(result)
-            await createStickers(ctx, imagesToStickers);
-            // Send the generated image back to the user (as a photo)
-            // await ctx.replyWithPhoto({ source: result }); // Assuming ctx.replyWithPhoto accepts a buffer directly
-        } catch (error) {
-            await ctx.reply("Failed to generate image: " + error.message);
-        }
-
-        // Reset after the process is complete
-        imageUrl = '';
-        userPrompt = '';
-    } else {
-        const state = userState[ctx.chat.id];
-        if (state) {
-            flowHandlers.handleNextStep(ctx, ctx.message.text);
-        }
+    const state = userState[ctx.chat.id];
+    if (state) {
+        flowHandlers.handleNextStep(ctx, ctx.message.text);
     }
     await sendMessageToBotality(ctx.message);
 });
@@ -450,10 +328,6 @@ bot.action("autofill_mode", async (ctx) => {
     // Update the state and proceed to the autofill step
     state.step = FLOW_STEPS.mode.nextStepFetch;
     ctx.reply(FLOW_STEPS[state.step].prompt);
-});
-
-bot.action('create_sticker_pack', (ctx) => {
-    createStickerPack(ctx); // Call the function when button is pressed
 });
 
 
