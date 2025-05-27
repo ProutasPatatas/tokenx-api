@@ -61,52 +61,6 @@ const userOperations = {
     }
   },
 
-  /**
-   * Get or create a user based on Telegram data
-   * @param {Object} telegramUser - User data from Telegram
-   * @returns {Promise<Object>} User document with ID and data
-   */
-  getOrCreateTelegramUser: async (telegramUser) => {
-    try {
-      // Check if user exists
-      const userQuery = await db.collection('users')
-        .where('telegramId', '==', telegramUser.id.toString())
-        .get();
-
-      // If user exists, return existing user data
-      if (!userQuery.empty) {
-        const userDoc = userQuery.docs[0];
-        return {
-          userId: userDoc.id,
-          ...userDoc.data()
-        };
-      }
-
-      // Create new user data
-      const newUserData = {
-        telegramId: telegramUser.id.toString(),
-        username: telegramUser.username || null,
-        firstName: telegramUser.first_name || null,
-        lastName: telegramUser.last_name || null,
-        source: 'telegram',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        uuid: crypto.randomUUID(),
-        walletAddress: null
-      };
-
-      // Add new user to collection
-      const userRef = await db.collection('users').add(newUserData);
-
-      return {
-        userId: userRef.id,
-        ...newUserData
-      };
-    } catch (error) {
-      console.error('Error in user management:', error);
-      throw new Error('Failed to manage user data: ' + error.message);
-    }
-  },
 
   /**
    * Update user data
@@ -247,7 +201,6 @@ const siteOperations = {
 module.exports = {
   // User operations
   getOrCreateUser: userOperations.getOrCreateUser,
-  getOrCreateTelegramUser: userOperations.getOrCreateTelegramUser,
   updateUser: userOperations.updateUser,
 
   // Site operations

@@ -19,8 +19,6 @@ const initializeFirebase = async () => {
         admin.initializeApp({
           credential: admin.credential.cert(serviceAccount),
         });
-
-        console.log("Firebase initialized successfully");
       } catch (error) {
         if (error.code === 'ENOENT') {
           // Specific error for missing file

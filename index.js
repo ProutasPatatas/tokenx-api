@@ -1,9 +1,6 @@
 // Import dependencies
 const express = require("express");
 const cors = require("cors");
-const { verifySolanaPayment } = require("./solanaUtils.js");
-const bot = require("./bot.js");
-const aiGenerateRouter = require("./ai-generate.js");
 const { createFirebaseSite, getOrCreateUser, getTemplateData } = require("./firebaseSites.js");
 const multer = require('multer');
 const axios = require('axios');
@@ -151,41 +148,9 @@ app.post("/api/website", (req, res) => {
     });
 });
 
-// Mount routes
-// app.use('/api/telegram', botRouter);
-app.use('/api/ai', aiGenerateRouter); // Add AI routes under /api/ai prefix
 
-// Webhook for TokenX bot
-// app.post("/bot/webhook", async (req, res) => {
-//     const { userId, action, data } = req.body;
-//     console.log("Webhook received:", req.body);
-
-//     try {
-//         if (action === "payment") {
-//             // Verify Solana payment
-//             const isPaid = await verifySolanaPayment(data.transactionHash, 0.1);
-//             if (!isPaid) {
-//                 return res.status(400).send({ error: "Payment not verified" });
-//             }
-//             res.send({ success: true, message: "Payment verified. Proceed with token data." });
-//         } else {
-//             res.status(400).send({ error: "Invalid action" });
-//         }
-//     } catch (error) {
-//         console.error("Error handling webhook:", error);
-//         res.status(500).send({ error: "Internal Server Error" });
-//     }
-// });
 
 // Start the Server
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
-
-    // Start Telegram bot
-    bot.launch();
-    console.log("Telegram bot is running", process.env.DEBUG_MODE ? process.env.BOT_TOKEN_DEV : process.env.BOT_TOKEN);
 });
-
-// Enable graceful stop
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
